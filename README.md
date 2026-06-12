@@ -32,6 +32,8 @@ The dashboard displays:
 - Score breakdown by CSF function
 - Comparison charts showing progress and goals
 - Detailed subcategory views with notes and improvement tracking
+- <img width="1425" height="1170" alt="Screenshot 2026-06-12 at 2 45 38 PM" src="https://github.com/user-attachments/assets/d3df0d1e-6812-4a8f-9468-367e7e1f987c" />
+
 
 ## Requirements
 
