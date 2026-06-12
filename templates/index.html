@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIST CSF 2.0 Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>NIST CSF 2.0 Tracker</h1>
+                <p class="subtitle">Cybersecurity Framework Maturity Assessment</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="openImportExportModal()">
+                    📥 Import / Export
+                </button>
+                <div class="theme-switcher">
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select" onchange="setTheme(this.value)">
+                        <option value="default">Default</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <a href="{{ url_for('function_detail', function_code='GV') }}" class="btn btn-secondary">
+                    View Details
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Overall Score Summary -->
+        <section class="summary-section">
+            <h2>Overall Maturity Scores</h2>
+            <div class="score-cards">
+                <div class="score-card" style="border-left-color: {{ year_colors.prior_year }};">
+                    <h3>Prior Year ({{ prior_year }})</h3>
+                    <div class="score-value" id="overall-prior">--</div>
+                    <div class="score-label">Average Score</div>
+                </div>
+                <div class="score-card" style="border-left-color: {{ year_colors.current_score }};">
+                    <h3>Current Score</h3>
+                    <div class="score-value" id="overall-current">--</div>
+                    <div class="score-label">Average Score</div>
+                </div>
+                <div class="score-card" style="border-left-color: {{ year_colors.current_year_goal }};">
+                    <h3>{{ current_year }} Goal</h3>
+                    <div class="score-value" id="overall-goal">--</div>
+                    <div class="score-label">Target Score</div>
+                </div>
+                <div class="score-card" style="border-left-color: {{ year_colors.next_year_goal }};">
+                    <h3>Next Year Goal</h3>
+                    <div class="score-value" id="overall-next">--</div>
+                    <div class="score-label">Target Score</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="chart-section">
+            <h2>Maturity by Function</h2>
+            <div class="chart-container">
+                <canvas id="maturityChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Function Summary Table -->
+        <section class="table-section">
+            <h2>Function Summary</h2>
+            <div class="table-controls">
+                <button class="btn btn-primary" onclick="exportData('json')">
+                    Export JSON
+                </button>
+                <button class="btn btn-outline" onclick="exportData('csv')">
+                    Export CSV
+                </button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Function</th>
+                        <th>Prior Year</th>
+                        <th>Current</th>
+                        <th>{{ current_year }} Goal</th>
+                        <th>Next Year Goal</th>
+                        <th>Gap</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-table-body">
+                    {% for row in summary %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.function_code }}</strong>
+                            <br><span class="muted">{{ row.function_name }}</span>
+                        </td>
+                        <td class="score-cell">{{ row.avg_prior|round(2) if row.avg_prior else 'N/A' }}</td>
+                        <td class="score-cell">{{ row.avg_current|round(2) if row.avg_current else 'N/A' }}</td>
+                        <td class="score-cell">{{ row.avg_current_goal|round(2) if row.avg_current_goal else 'N/A' }}</td>
+                        <td class="score-cell">{{ row.avg_next_goal|round(2) if row.avg_next_goal else 'N/A' }}</td>
+                        <td class="score-cell gap">
+                            {% if row.avg_current and row.avg_current_goal %}
+                                {{ (row.avg_current_goal - row.avg_current)|round(2) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('function_detail', function_code=row.function_code) }}"
+                               class="btn btn-sm btn-secondary">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Scoring Legend -->
+        <section class="legend-section">
+            <h2>Scoring Guide</h2>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #28a745;">0.0 - 1.0</span>
+                    <span class="legend-desc">Initial - Ad-hoc processes</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #ffc107;">1.1 - 2.0</span>
+                    <span class="legend-desc">Developing - Policies defined</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #17a2b8;">2.1 - 3.0</span>
+                    <span class="legend-desc">Defined - Documented processes</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #2D36EC;">3.1 - 4.0</span>
+                    <span class="legend-desc">Managed - Measured & controlled</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #090B2F;">4.1 - 5.0</span>
+                    <span class="legend-desc">Optimized - Continuous improvement</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Import/Export Modal -->
+    <div id="importExportModal" class="modal import-export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import / Export Scores</h2>
+                <button class="modal-close" onclick="closeImportExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Export Section -->
+                <div class="export-section">
+                    <h3>Export Scores</h3>
+                    <p class="muted">Download your NIST CSF maturity scores in various formats.</p>
+                    <div style="margin-top: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                        <button class="btn btn-primary" onclick="exportData('json')">
+                            Export as JSON
+                        </button>
+                        <button class="btn btn-outline" onclick="exportData('csv')">
+                            Export as CSV
+                        </button>
+                        <button class="btn btn-outline" onclick="exportData('excel')">
+                            Export as Excel
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="margin: var(--spacing-xl) 0; border-color: var(--border-color);">
+
+                <!-- Import Section -->
+                <div class="import-section">
+                    <h3>Import Scores</h3>
+                    <p class="muted">Upload a JSON or CSV file to import scores. Existing scores will be updated.</p>
+
+                    <div class="file-input-wrapper" style="margin-top: var(--spacing-md);">
+                        <input type="file" id="import-file" accept=".json,.csv" onchange="handleFileSelect(this)">
+                        <label for="import-file" class="file-input-label">
+                            <span id="file-name">📁 Click to select a file or drag & drop</span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top: var(--spacing-md);">
+                        <button class="btn btn-success" id="import-btn" onclick="importData()" disabled>
+                            Import Scores
+                        </button>
+                    </div>
+
+                    <div style="margin-top: var(--spacing-lg);">
+                        <h4>Expected Format:</h4>
+                        <p class="muted" style="font-size: 0.85rem;">
+                            <strong>JSON:</strong> Array of objects with <code>subcategory_code</code> and score fields.<br>
+                            <strong>CSV:</strong> Headers should include <code>subcategory_code</code>, <code>prior_year_score</code>, <code>current_score</code>, <code>current_year_goal</code>, <code>next_year_goal</code>, <code>notes</code>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>NIST CSF 2.0 Tracker &copy; 2024</p>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // THEME MANAGEMENT
+        // ============================================================================
+
+        // Get stored theme or default
+        const storedTheme = localStorage.getItem('nist-csf-theme') || 'default';
+        document.documentElement.setAttribute('data-theme', storedTheme);
+        document.getElementById('theme-select').value = storedTheme;
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('nist-csf-theme', theme);
+            updateChartColors();
+        }
+
+        // ============================================================================
+        // CHART CONFIGURATION
+        // ============================================================================
+
+        const yearColors = {{ year_colors | tojson }};
+        let maturityChart = null;
+
+        // Get theme-aware colors
+        function getThemeColors() {
+            const style = getComputedStyle(document.documentElement);
+            return {
+                text: style.getPropertyValue('--chart-text').trim() || '#090B2F',
+                grid: style.getPropertyValue('--chart-grid').trim() || '#ECEEF2'
+            };
+        }
+
+        // Fetch chart data
+        fetch('/api/chart-data')
+            .then(response => response.json())
+            .then(data => {
+                // Update overall scores with 1 decimal place (rounded)
+                document.getElementById('overall-prior').textContent =
+                    formatScore(data.overall.prior_year);
+                document.getElementById('overall-current').textContent =
+                    formatScore(data.overall.current_score);
+                document.getElementById('overall-goal').textContent =
+                    formatScore(data.overall.current_goal);
+                document.getElementById('overall-next').textContent =
+                    formatScore(data.overall.next_goal);
+
+                // Create chart
+                createChart(data);
+            });
+
+        // Format score to 1 decimal place with proper rounding
+        function formatScore(value) {
+            if (value === null || value === undefined || isNaN(value)) return '--';
+            return Math.round(value * 10) / 10;
+        }
+
+        function createChart(data) {
+            const themeColors = getThemeColors();
+            const ctx = document.getElementById('maturityChart').getContext('2d');
+
+            if (maturityChart) {
+                maturityChart.destroy();
+            }
+
+            maturityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Prior Year',
+                            data: data.prior_year,
+                            backgroundColor: yearColors.prior_year,
+                            borderColor: yearColors.prior_year,
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Current Score',
+                            data: data.current_score,
+                            backgroundColor: yearColors.current_score,
+                            borderColor: yearColors.current_score,
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Current Year Goal',
+                            data: data.current_goal,
+                            backgroundColor: yearColors.current_year_goal,
+                            borderColor: yearColors.current_year_goal,
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Next Year Goal',
+                            data: data.next_goal,
+                            backgroundColor: yearColors.next_year_goal,
+                            borderColor: yearColors.next_year_goal,
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 12
+                                },
+                                color: themeColors.text
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(9, 11, 47, 0.9)',
+                            titleColor: '#FBFCFA',
+                            bodyColor: '#FBFCFA',
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const index = tooltipItems[0].dataIndex;
+                                    return data.full_labels[index];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 0.5,
+                                color: themeColors.text
+                            },
+                            grid: {
+                                color: themeColors.grid
+                            },
+                            title: {
+                                display: true,
+                                text: 'Maturity Score',
+                                color: themeColors.text
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: themeColors.text
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartColors() {
+            if (maturityChart) {
+                const themeColors = getThemeColors();
+                maturityChart.options.plugins.legend.labels.color = themeColors.text;
+                maturityChart.options.scales.y.ticks.color = themeColors.text;
+                maturityChart.options.scales.y.grid.color = themeColors.grid;
+                maturityChart.options.scales.y.title.color = themeColors.text;
+                maturityChart.options.scales.x.ticks.color = themeColors.text;
+                maturityChart.update();
+            }
+        }
+
+        // ============================================================================
+        // EXPORT FUNCTIONS
+        // ============================================================================
+
+        function exportData(format) {
+            let url;
+            if (format === 'csv') {
+                url = '/api/export/csv';
+            } else if (format === 'excel') {
+                url = '/api/export/excel';
+            } else {
+                url = '/api/export';
+            }
+            window.location.href = url;
+        }
+
+        // ============================================================================
+        // IMPORT FUNCTIONS
+        // ============================================================================
+
+        let selectedFile = null;
+
+        function openImportExportModal() {
+            document.getElementById('importExportModal').style.display = 'block';
+        }
+
+        function closeImportExportModal() {
+            document.getElementById('importExportModal').style.display = 'none';
+            resetImportForm();
+        }
+
+        function handleFileSelect(input) {
+            selectedFile = input.files[0];
+            if (selectedFile) {
+                document.getElementById('file-name').textContent = '📄 ' + selectedFile.name;
+                document.getElementById('import-btn').disabled = false;
+            } else {
+                resetImportForm();
+            }
+        }
+
+        function resetImportForm() {
+            selectedFile = null;
+            document.getElementById('import-file').value = '';
+            document.getElementById('file-name').textContent = '📁 Click to select a file or drag & drop';
+            document.getElementById('import-btn').disabled = true;
+        }
+
+        function importData() {
+            if (!selectedFile) {
+                showNotification('Please select a file first', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            const fileName = selectedFile.name.toLowerCase();
+
+            reader.onload = function(e) {
+                let importData;
+
+                if (fileName.endsWith('.json')) {
+                    try {
+                        importData = JSON.parse(e.target.result);
+                    } catch (err) {
+                        showNotification('Invalid JSON file', 'error');
+                        return;
+                    }
+                    sendImportRequest('/api/import', importData);
+                } else if (fileName.endsWith('.csv')) {
+                    try {
+                        importData = parseCSV(e.target.result);
+                    } catch (err) {
+                        showNotification('Invalid CSV file: ' + err.message, 'error');
+                        return;
+                    }
+                    sendImportRequest('/api/import/csv', importData);
+                } else {
+                    showNotification('Unsupported file format. Please use JSON or CSV.', 'error');
+                }
+            };
+
+            reader.onerror = function() {
+                showNotification('Error reading file', 'error');
+            };
+
+            reader.readAsText(selectedFile);
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) {
+                throw new Error('CSV must have header row and at least one data row');
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const records = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                const record = {};
+                headers.forEach((header, index) => {
+                    let value = values[index] || '';
+                    // Convert numeric fields
+                    if (['prior_year_score', 'current_score', 'current_year_goal', 'next_year_goal'].includes(header)) {
+                        value = value ? parseFloat(value) : null;
+                    }
+                    record[header] = value;
+                });
+                records.push(record);
+            }
+
+            return { data: records };
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim());
+            return values;
+        }
+
+        function sendImportRequest(url, data) {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification(`Successfully imported ${result.imported} scores`, 'success');
+                    closeImportExportModal();
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showNotification(result.error || 'Import failed', 'error');
+                }
+            })
+            .catch(err => {
+                showNotification('Error importing data', 'error');
+                console.error(err);
+            });
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('importExportModal');
+            if (event.target === modal) {
+                closeImportExportModal();
+            }
+        };
+
+        // ============================================================================
+        // NOTIFICATIONS
+        // ============================================================================
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

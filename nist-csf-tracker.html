@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIST CSF 2.0 Maturity Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --electric-blue: #2D36EC;
+            --alert-orange: #FE572A;
+            --highlighter-yellow: #DAFF02;
+            --deep-navy: #090B2F;
+            --code-grey: #ECEEF2;
+            --cloud-white: #FBFCFA;
+            --sonatype-green: #28A745;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--cloud-white);
+            color: var(--deep-navy);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--deep-navy) 0%, #1a1d4e 100%);
+            color: var(--cloud-white);
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 12px rgba(9, 11, 47, 0.15);
+        }
+
+        .header h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+        .header p { color: var(--code-grey); font-size: 0.9rem; }
+
+        .main-content { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+        .score-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .score-card {
+            background: var(--cloud-white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(9, 11, 47, 0.08);
+            border-left: 4px solid var(--electric-blue);
+            transition: transform 0.2s ease;
+        }
+
+        .score-card:hover { transform: translateY(-2px); }
+
+        .score-card h3 {
+            font-size: 0.85rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .score-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--deep-navy);
+        }
+
+        .section {
+            background: var(--cloud-white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(9, 11, 47, 0.08);
+        }
+
+        .section h2 {
+            color: var(--deep-navy);
+            margin-bottom: 1.5rem;
+            border-bottom: 3px solid var(--electric-blue);
+            padding-bottom: 0.5rem;
+        }
+
+        .chart-container { height: 400px; }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            background: var(--code-grey);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover { background: #d0d3d9; }
+        .tab-btn.active {
+            background: var(--electric-blue);
+            color: var(--cloud-white);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        .data-table th, .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--code-grey);
+        }
+
+        .data-table th {
+            background: var(--deep-navy);
+            color: var(--cloud-white);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table tbody tr:hover { background: rgba(45, 54, 236, 0.05); }
+
+        .score-input {
+            width: 55px;
+            padding: 0.25rem;
+            border: 1px solid var(--code-grey);
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .score-input:focus {
+            outline: none;
+            border-color: var(--electric-blue);
+            box-shadow: 0 0 0 3px rgba(45, 54, 236, 0.15);
+        }
+
+        .score-input:disabled {
+            background: var(--code-grey);
+            cursor: not-allowed;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 0.25rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+        .btn-primary { background: var(--electric-blue); color: var(--cloud-white); }
+        .btn-outline { background: transparent; color: var(--electric-blue); border: 1px solid var(--electric-blue); }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-score {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: var(--cloud-white);
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 65px;
+            text-align: center;
+        }
+        .legend-desc { font-size: 0.8rem; color: #666; }
+
+        .desc-cell {
+            min-width: 300px;
+            max-width: 400px;
+            vertical-align: top;
+        }
+
+        .desc-text {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .category-header {
+            margin-top: 1.5rem;
+            padding: 0.75rem;
+            background: var(--code-grey);
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .category-avg {
+            font-size: 0.8rem;
+            font-weight: normal;
+            color: #666;
+            margin-left: 1rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: var(--cloud-white);
+            z-index: 2000;
+        }
+        .notification.success { background: var(--sonatype-green); }
+        .notification.error { background: var(--alert-orange); }
+
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--deep-navy);
+            color: var(--code-grey);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content { padding: 1rem; }
+            .score-cards { grid-template-columns: repeat(2, 1fr); }
+            .chart-container { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>NIST CSF 2.0 Maturity Tracker</h1>
+        <p>Cybersecurity Framework Assessment</p>
+    </header>
+
+    <main class="main-content">
+        <!-- Overall Score Cards -->
+        <div class="score-cards">
+            <div class="score-card" style="border-left-color: #ECEEF2;">
+                <h3>Prior Year</h3>
+                <div class="score-value" id="overall-prior">--</div>
+            </div>
+            <div class="score-card" style="border-left-color: #2D36EC;">
+                <h3>Current Score</h3>
+                <div class="score-value" id="overall-current">--</div>
+            </div>
+            <div class="score-card" style="border-left-color: #FE572A;">
+                <h3>Current Year Goal</h3>
+                <div class="score-value" id="overall-goal">--</div>
+            </div>
+            <div class="score-card" style="border-left-color: #DAFF02;">
+                <h3>Next Year Goal</h3>
+                <div class="score-value" id="overall-next">--</div>
+            </div>
+        </div>
+
+        <!-- Bar Chart -->
+        <section class="section">
+            <h2>Maturity by NIST CSF Function</h2>
+            <div class="chart-container">
+                <canvas id="maturityChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Function Tabs -->
+        <section class="section">
+            <h2>Score Details</h2>
+            <div class="tabs" id="functionTabs"></div>
+            <div id="functionContent"></div>
+        </section>
+
+        <!-- Scoring Legend -->
+        <section class="section">
+            <h2>Scoring Guide</h2>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #28a745;">0.0-1.0</span>
+                    <span class="legend-desc">Initial (Ad-hoc)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #ffc107; color: #000;">1.1-2.0</span>
+                    <span class="legend-desc">Developing</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #17a2b8;">2.1-3.0</span>
+                    <span class="legend-desc">Defined</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #2D36EC;">3.1-4.0</span>
+                    <span class="legend-desc">Managed</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-score" style="background: #090B2F;">4.1-5.0</span>
+                    <span class="legend-desc">Optimized</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Actions -->
+        <section class="section">
+            <h2>Tools</h2>
+            <button class="btn btn-primary" onclick="exportData()">Export JSON</button>
+            <button class="btn btn-outline" onclick="resetScores()">Reset All Scores</button>
+        </section>
+    </main>
+
+    <footer class="footer">
+        NIST CSF 2.0 Tracker &copy; 2024
+    </footer>
+
+    <script>
+        // NIST CSF 2.0 Core Data (imported from Excel)
+        const nistData = [
+            // GOVERN (GV) - 34 subcategories
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OC", catName: "Organizational Context", sub: "GV.OC-01", desc: "The organizational mission is understood and informs cybersecurity risk management"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OC", catName: "Organizational Context", sub: "GV.OC-02", desc: "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OC", catName: "Organizational Context", sub: "GV.OC-03", desc: "Legal, regulatory, and contractual requirements regarding cybersecurity - including privacy and civil liberties obligations - are understood and managed"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OC", catName: "Organizational Context", sub: "GV.OC-04", desc: "Critical objectives, capabilities, and services that stakeholders depend on or expect from the organization are understood and communicated"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OC", catName: "Organizational Context", sub: "GV.OC-05", desc: "Outcomes, capabilities, and services that the organization depends on are understood and communicated"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-01", desc: "Risk management objectives are established and agreed to by organizational stakeholders"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-02", desc: "Risk appetite and risk tolerance statements are established, communicated, and maintained"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-03", desc: "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-04", desc: "Strategic direction that describes appropriate risk response options is established and communicated"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-05", desc: "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-06", desc: "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RM", catName: "Risk Management Strategy", sub: "GV.RM-07", desc: "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RR", catName: "Roles, Responsibilities, and Authorities", sub: "GV.RR-01", desc: "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continually improving"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RR", catName: "Roles, Responsibilities, and Authorities", sub: "GV.RR-02", desc: "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RR", catName: "Roles, Responsibilities, and Authorities", sub: "GV.RR-03", desc: "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.RR", catName: "Roles, Responsibilities, and Authorities", sub: "GV.RR-04", desc: "Cybersecurity is included in human resources practices"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.PO", catName: "Policy", sub: "GV.PO-01", desc: "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.PO", catName: "Policy", sub: "GV.PO-02", desc: "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OV", catName: "Oversight", sub: "GV.OV-01", desc: "Cybersecurity risk management strategy outcomes are reviewed to inform and adjust strategy and direction"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OV", catName: "Oversight", sub: "GV.OV-02", desc: "The cybersecurity risk management strategy is reviewed and adjusted to ensure coverage of organizational requirements and risks"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.OV", catName: "Oversight", sub: "GV.OV-03", desc: "Organizational cybersecurity risk management performance is evaluated and reviewed for adjustments needed"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-01", desc: "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-02", desc: "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-03", desc: "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-04", desc: "Suppliers are known and prioritized by criticality"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-05", desc: "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-06", desc: "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-07", desc: "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-08", desc: "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-09", desc: "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle"},
+            {fn: "GV", fnName: "GOVERN", cat: "GV.SC", catName: "Cybersecurity Supply Chain Risk Management", sub: "GV.SC-10", desc: "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement"},
+
+            // IDENTIFY (ID) - 21 subcategories
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-01", desc: "Inventories of hardware managed by the organization are maintained"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-02", desc: "Inventories of software, services, and systems managed by the organization are maintained"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-03", desc: "Representations of the organization's authorized network communication and internal and external network data flows are maintained"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-04", desc: "Inventories of services provided by suppliers are maintained"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-05", desc: "Assets are prioritized based on classification, criticality, resources, and impact on the mission"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-07", desc: "Inventories of data and corresponding metadata for designated data types are maintained"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.AM", catName: "Asset Management", sub: "ID.AM-08", desc: "Systems, hardware, software, services, and data are managed throughout their life cycles"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-01", desc: "Vulnerabilities in assets are identified, validated, and recorded"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-02", desc: "Cyber threat intelligence is received from information sharing forums and sources"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-03", desc: "Internal and external threats to the organization are identified and recorded"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-04", desc: "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-05", desc: "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-06", desc: "Risk responses are chosen, prioritized, planned, tracked, and communicated"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-07", desc: "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-08", desc: "Processes for receiving, analyzing, and responding to vulnerability disclosures are established"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-09", desc: "The authenticity and integrity of hardware and software are assessed prior to acquisition and use"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.RA", catName: "Risk Assessment", sub: "ID.RA-10", desc: "Critical suppliers are assessed prior to acquisition"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.IM", catName: "Improvement", sub: "ID.IM-01", desc: "Improvements are identified from evaluations"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.IM", catName: "Improvement", sub: "ID.IM-02", desc: "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.IM", catName: "Improvement", sub: "ID.IM-03", desc: "Improvements are identified from execution of operational processes, procedures, and activities"},
+            {fn: "ID", fnName: "IDENTIFY", cat: "ID.IM", catName: "Improvement", sub: "ID.IM-04", desc: "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved"},
+
+            // PROTECT (PR) - 24 subcategories
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AA", catName: "Identity Management, Authentication, and Access Control", sub: "PR.AA-01", desc: "Identity and credentials for authorized users, devices, and systems are managed"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AA", catName: "Identity Management, Authentication, and Access Control", sub: "PR.AA-02", desc: "Identities are proofed and bound to credentials and asserted in interactions"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AA", catName: "Identity Management, Authentication, and Access Control", sub: "PR.AA-03", desc: "Users, devices, and other assets are authenticated (or verified) commensurate with the risk of the transaction"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AA", catName: "Identity Management, Authentication, and Access Control", sub: "PR.AA-04", desc: "Access permissions, rights, and authorizations are managed, incorporating the principles of least privilege and separation of duties"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AA", catName: "Identity Management, Authentication, and Access Control", sub: "PR.AA-05", desc: "Access permissions, rights, and authorizations are reviewed periodically"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AT", catName: "Awareness and Training", sub: "PR.AT-01", desc: "Personnel receive awareness and training so that they can perform their cybersecurity- and privacy-related duties and responsibilities"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.AT", catName: "Awareness and Training", sub: "PR.AT-02", desc: "Individuals in leadership and specialized roles receive awareness and training in those roles"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.DS", catName: "Data Security", sub: "PR.DS-01", desc: "The confidentiality, integrity, and availability of data-at-rest are protected"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.DS", catName: "Data Security", sub: "PR.DS-02", desc: "The confidentiality, integrity, and availability of data-in-transit are protected"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.DS", catName: "Data Security", sub: "PR.DS-04", desc: "Adequate capacity to ensure availability is maintained"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.DS", catName: "Data Security", sub: "PR.DS-05", desc: "Protections against data leaks are implemented"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.PS", catName: "Platform Security", sub: "PR.PS-01", desc: "Configuration management practices are established and applied"},
+            {fn: "PR", fnName: "PROTECT", cat: "PR.PS", catName: "Platform Security", sub: "PR.PS-02", desc: "Software is patched and updated in a timely manner"},
+
+            // DETECT (DE) - 9 subcategories
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-01", desc: "The network is monitored to detect potential cybersecurity events"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-02", desc: "The physical environment is monitored to detect potential cybersecurity events"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-03", desc: "Personnel activity is monitored to detect potential cybersecurity events"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-06", desc: "External service provider activity is monitored to detect potential cybersecurity events"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-07", desc: "Monitoring for unauthorized personnel, connections, devices, and software is performed"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.CM", catName: "Continuous Monitoring", sub: "DE.CM-08", desc: "Systems are scanned for vulnerabilities and indicators of compromise"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.AE", catName: "Adverse Event Analysis", sub: "DE.AE-01", desc: "A baseline of expected network and system operations is established"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.AE", catName: "Adverse Event Analysis", sub: "DE.AE-02", desc: "Potential adverse events are identified and analyzed"},
+            {fn: "DE", fnName: "DETECT", cat: "DE.AE", catName: "Adverse Event Analysis", sub: "DE.AE-03", desc: "Information from adverse event analysis is provided to incident response"},
+
+            // RESPOND (RS) - 6 subcategories
+            {fn: "RS", fnName: "RESPOND", cat: "RS.MA", catName: "Incident Management", sub: "RS.MA-01", desc: "Incident handling processes are executed"},
+            {fn: "RS", fnName: "RESPOND", cat: "RS.MA", catName: "Incident Management", sub: "RS.MA-02", desc: "Incidents are reported"},
+            {fn: "RS", fnName: "RESPOND", cat: "RS.AN", catName: "Incident Analysis", sub: "RS.AN-01", desc: "Notifications from detection systems are investigated"},
+            {fn: "RS", fnName: "RESPOND", cat: "RS.AN", catName: "Incident Analysis", sub: "RS.AN-02", desc: "The impact of incidents is understood"},
+            {fn: "RS", fnName: "RESPOND", cat: "RS.CO", catName: "Incident Response Reporting and Communication", sub: "RS.CO-01", desc: "Incidents are reported to internal and external stakeholders"},
+            {fn: "RS", fnName: "RESPOND", cat: "RS.CO", catName: "Incident Response Reporting and Communication", sub: "RS.CO-02", desc: "Incidents are reported to internal and external stakeholders as required by laws, regulations, and contractual obligations"},
+
+            // RECOVER (RC) - 2 subcategories
+            {fn: "RC", fnName: "RECOVER", cat: "RC.RP", catName: "Incident Recovery Plan Execution", sub: "RC.RP-01", desc: "Recovery plan is executed during or after an incident"},
+            {fn: "RC", fnName: "RECOVER", cat: "RC.CO", catName: "Incident Recovery Communication", sub: "RC.CO-01", desc: "Public relations and reputation are managed after an incident"}
+        ];
+
+        // Load scores from localStorage
+        let scores = JSON.parse(localStorage.getItem('nistScores')) || {};
+
+        // Initialize scores for any missing subcategories
+        nistData.forEach(item => {
+            if (!scores[item.sub]) {
+                scores[item.sub] = { prior: null, current: null, goal: null, next: null, locked: false };
+            }
+        });
+
+        function save() {
+            localStorage.setItem('nistScores', JSON.stringify(scores));
+        }
+
+        function calcAverages() {
+            const result = { overall: { p: 0, c: 0, g: 0, n: 0, count: 0 }, functions: {} };
+
+            nistData.forEach(item => {
+                const s = scores[item.sub];
+                if (!result.functions[item.fn]) {
+                    result.functions[item.fn] = { name: item.fnName, p: 0, c: 0, g: 0, n: 0, count: 0 };
+                }
+
+                if (s.prior !== null) { result.functions[item.fn].p += s.prior; result.overall.p += s.prior; }
+                if (s.current !== null) { result.functions[item.fn].c += s.current; result.overall.c += s.current; }
+                if (s.goal !== null) { result.functions[item.fn].g += s.goal; result.overall.g += s.goal; }
+                if (s.next !== null) { result.functions[item.fn].n += s.next; result.overall.n += s.next; }
+
+                result.functions[item.fn].count++;
+                result.overall.count++;
+            });
+
+            // Calculate averages
+            for (let fn in result.functions) {
+                const f = result.functions[fn];
+                f.avgP = f.count ? (f.p / f.count).toFixed(2) : 0;
+                f.avgC = f.count ? (f.c / f.count).toFixed(2) : 0;
+                f.avgG = f.count ? (f.g / f.count).toFixed(2) : 0;
+                f.avgN = f.count ? (f.n / f.count).toFixed(2) : 0;
+            }
+
+            result.overall.avgP = result.overall.count ? (result.overall.p / result.overall.count).toFixed(2) : 0;
+            result.overall.avgC = result.overall.count ? (result.overall.c / result.overall.count).toFixed(2) : 0;
+            result.overall.avgG = result.overall.count ? (result.overall.g / result.overall.count).toFixed(2) : 0;
+            result.overall.avgN = result.overall.count ? (result.overall.n / result.overall.count).toFixed(2) : 0;
+
+            return result;
+        }
+
+        function init() {
+            const avg = calcAverages();
+
+            // Update score cards
+            document.getElementById('overall-prior').textContent = avg.overall.avgP;
+            document.getElementById('overall-current').textContent = avg.overall.avgC;
+            document.getElementById('overall-goal').textContent = avg.overall.avgG;
+            document.getElementById('overall-next').textContent = avg.overall.avgN;
+
+            // Create chart
+            createChart(avg.functions);
+
+            // Create tabs
+            const tabContainer = document.getElementById('functionTabs');
+            const contentContainer = document.getElementById('functionContent');
+            const fnOrder = ['GV', 'ID', 'PR', 'DE', 'RS', 'RC'];
+
+            fnOrder.forEach((fn, i) => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${i === 0 ? 'active' : ''}`;
+                btn.textContent = `${fn} - ${avg.functions[fn].name}`;
+                btn.onclick = () => showFn(fn);
+                tabContainer.appendChild(btn);
+
+                const content = document.createElement('div');
+                content.id = `content-${fn}`;
+                content.style.display = i === 0 ? 'block' : 'none';
+                contentContainer.appendChild(content);
+            });
+
+            showFn('GV');
+        }
+
+        function createChart(functions) {
+            const ctx = document.getElementById('maturityChart').getContext('2d');
+            const fnOrder = ['GV', 'ID', 'PR', 'DE', 'RS', 'RC'];
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: fnOrder,
+                    datasets: [
+                        { label: 'Prior Year', data: fnOrder.map(f => parseFloat(functions[f].avgP)), backgroundColor: '#ECEEF2' },
+                        { label: 'Current Score', data: fnOrder.map(f => parseFloat(functions[f].avgC)), backgroundColor: '#2D36EC' },
+                        { label: 'Current Year Goal', data: fnOrder.map(f => parseFloat(functions[f].avgG)), backgroundColor: '#FE572A' },
+                        { label: 'Next Year Goal', data: fnOrder.map(f => parseFloat(functions[f].avgN)), backgroundColor: '#DAFF02' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { beginAtZero: true, max: 5, ticks: { stepSize: 0.5 } } }
+                }
+            });
+        }
+
+        function showFn(fn) {
+            // Update tab states
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.startsWith(fn));
+            });
+
+            // Show/hide content
+            document.querySelectorAll('#functionContent > div').forEach(div => {
+                div.style.display = div.id === `content-${fn}` ? 'block' : 'none';
+            });
+
+            // Build content
+            const content = document.getElementById(`content-${fn}`);
+            const fnData = nistData.filter(d => d.fn === fn);
+
+            // Group by category
+            const cats = {};
+            fnData.forEach(item => {
+                if (!cats[item.cat]) cats[item.cat] = { name: item.catName, items: [] };
+                cats[item.cat].items.push(item);
+            });
+
+            let html = '';
+            for (let cat in cats) {
+                const items = cats[cat].items;
+                const avg = calcCatAvg(items);
+
+                html += `
+                    <div class="category-header">
+                        ${cat}: ${cats[cat].name}
+                        <span class="category-avg">
+                            Avg: Prior=${avg.p} | Current=${avg.c} | Goal=${avg.g} | Next=${avg.n}
+                        </span>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subcategory</th>
+                                <th>Prior</th>
+                                <th>Current</th>
+                                <th>Goal</th>
+                                <th>Next</th>
+                                <th>Lock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                items.forEach(item => {
+                    const s = scores[item.sub];
+                    html += `
+                        <tr>
+                            <td class="desc-cell">
+                                <strong>${item.sub}</strong>
+                                <div class="desc-text">${item.desc}</div>
+                            </td>
+                            <td>
+                                <input type="number" class="score-input" value="${s.prior || ''}"
+                                    step="0.1" min="0" max="5" ${s.locked ? 'disabled' : ''}
+                                    onchange="update('${item.sub}', 'prior', this.value)">
+                            </td>
+                            <td>
+                                <input type="number" class="score-input" value="${s.current || ''}"
+                                    step="0.1" min="0" max="5"
+                                    onchange="update('${item.sub}', 'current', this.value)">
+                            </td>
+                            <td>
+                                <input type="number" class="score-input" value="${s.goal || ''}"
+                                    step="0.1" min="0" max="5"
+                                    onchange="update('${item.sub}', 'goal', this.value)">
+                            </td>
+                            <td>
+                                <input type="number" class="score-input" value="${s.next || ''}"
+                                    step="0.1" min="0" max="5"
+                                    onchange="update('${item.sub}', 'next', this.value)">
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline" onclick="toggleLock('${item.sub}')">
+                                    ${s.locked ? '🔒 Unlock' : 'Lock'}
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+            }
+
+            content.innerHTML = html;
+        }
+
+        function calcCatAvg(items) {
+            let p = 0, c = 0, g = 0, n = 0, cnt = 0;
+            items.forEach(item => {
+                const s = scores[item.sub];
+                if (s.prior !== null) p += s.prior;
+                if (s.current !== null) c += s.current;
+                if (s.goal !== null) g += s.goal;
+                if (s.next !== null) n += s.next;
+                cnt++;
+            });
+            return {
+                p: cnt ? (p / cnt).toFixed(2) : '0.00',
+                c: cnt ? (c / cnt).toFixed(2) : '0.00',
+                g: cnt ? (g / cnt).toFixed(2) : '0.00',
+                n: cnt ? (n / cnt).toFixed(2) : '0.00'
+            };
+        }
+
+        function update(sub, field, val) {
+            const numVal = parseFloat(val);
+            scores[sub][field] = isNaN(numVal) ? null : numVal;
+            save();
+            showNotification('Score updated', 'success');
+
+            // Refresh display
+            const avg = calcAverages();
+            document.getElementById('overall-prior').textContent = avg.overall.avgP;
+            document.getElementById('overall-current').textContent = avg.overall.avgC;
+            document.getElementById('overall-goal').textContent = avg.overall.avgG;
+            document.getElementById('overall-next').textContent = avg.overall.avgN;
+        }
+
+        function toggleLock(sub) {
+            scores[sub].locked = !scores[sub].locked;
+            save();
+            showNotification(`Prior year ${scores[sub].locked ? 'locked' : 'unlocked'}`, 'success');
+
+            // Refresh current tab
+            const activeTab = document.querySelector('.tab-btn.active').textContent.split(' ')[0];
+            showFn(activeTab);
+        }
+
+        function showNotification(msg, type) {
+            const n = document.createElement('div');
+            n.className = `notification ${type}`;
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 2000);
+        }
+
+        function exportData() {
+            const data = { exported: new Date().toISOString(), scores: scores };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `nist-csf-scores-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function resetScores() {
+            if (confirm('Reset all scores?')) {
+                scores = {};
+                nistData.forEach(item => {
+                    scores[item.sub] = { prior: null, current: null, goal: null, next: null, locked: false };
+                });
+                save();
+                location.reload();
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

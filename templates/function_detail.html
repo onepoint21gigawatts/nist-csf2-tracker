@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ function.name }} - NIST CSF Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <a href="{{ url_for('index') }}" class="back-link">← Dashboard</a>
+                <h1>{{ function.name }} ({{ function.code }})</h1>
+            </div>
+            <div class="header-actions">
+                <div class="theme-switcher">
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select" onchange="setTheme(this.value)">
+                        <option value="default">Default</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Function Overview -->
+        <section class="summary-section">
+            <h2>{{ function.name }} Overview</h2>
+            <div class="category-cards">
+                {% for item in category_data %}
+                <div class="category-card">
+                    <h3>{{ item.category.code }}: {{ item.category.name }}</h3>
+                    <p class="category-desc">{{ item.category.description[:200] }}...</p>
+                    <div class="category-scores">
+                        <div class="mini-score">
+                            <span class="label">Prior</span>
+                            <span class="value">{{ item.averages.prior_year }}</span>
+                        </div>
+                        <div class="mini-score">
+                            <span class="label">Current</span>
+                            <span class="value">{{ item.averages.current_score }}</span>
+                        </div>
+                        <div class="mini-score">
+                            <span class="label">Goal</span>
+                            <span class="value">{{ item.averages.current_goal }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Category Chart -->
+        <section class="chart-section">
+            <h2>Category Comparison</h2>
+            <div class="chart-container chart-sm">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Subcategory Details -->
+        {% for item in category_data %}
+        <section class="category-section" id="category-{{ item.category.code }}">
+            <h2>{{ item.category.code }}: {{ item.category.name }}</h2>
+            {% if item.category.description %}
+            <p class="category-description">{{ item.category.description }}</p>
+            {% endif %}
+
+            <div class="table-responsive">
+                <table class="data-table detailed-table">
+                    <thead>
+                        <tr>
+                            <th>Subcategory</th>
+                            <th class="score-col">Prior Year</th>
+                            <th class="score-col">Current</th>
+                            <th class="score-col">{{ current_year }} Goal</th>
+                            <th class="score-col">Next Year</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in item.subcategories %}
+                        <tr data-subcategory-id="{{ sub.id }}">
+                            <td class="subcategory-cell">
+                                <strong>{{ sub.code }}</strong>
+                                <p class="subcategory-desc">{{ sub.description[:100] }}{% if sub.description|length > 100 %}...{% endif %}</p>
+                                <button class="btn-link" onclick="showDetails({{ sub.id }})">
+                                    View Full Details
+                                </button>
+                            </td>
+                            <td class="score-cell">
+                                <div class="score-input-wrapper {% if sub.prior_year_locked %}locked{% endif %}">
+                                    <input type="number"
+                                           class="score-input"
+                                           id="prior-{{ sub.id }}"
+                                           value="{{ sub.prior_year_score if sub.prior_year_score else '' }}"
+                                           step="0.1"
+                                           min="0"
+                                           max="5"
+                                           {% if sub.prior_year_locked %}disabled{% endif %}
+                                           onchange="updateScore('{{ sub.code }}', 'prior_year_score', this.value)">
+                                    {% if sub.prior_year_locked %}
+                                    <span class="lock-icon" title="Prior year score is locked">🔒</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="score-cell">
+                                <input type="number"
+                                       class="score-input"
+                                       id="current-{{ sub.id }}"
+                                       value="{{ sub.current_score if sub.current_score else '' }}"
+                                       step="0.1"
+                                       min="0"
+                                       max="5"
+                                       onchange="updateScore('{{ sub.code }}', 'current_score', this.value)">
+                            </td>
+                            <td class="score-cell">
+                                <input type="number"
+                                       class="score-input"
+                                       id="goal-{{ sub.id }}"
+                                       value="{{ sub.current_year_goal if sub.current_year_goal else '' }}"
+                                       step="0.1"
+                                       min="0"
+                                       max="5"
+                                       onchange="updateScore('{{ sub.code }}', 'current_year_goal', this.value)">
+                            </td>
+                            <td class="score-cell">
+                                <input type="number"
+                                       class="score-input"
+                                       id="next-{{ sub.id }}"
+                                       value="{{ sub.next_year_goal if sub.next_year_goal else '' }}"
+                                       step="0.1"
+                                       min="0"
+                                       max="5"
+                                       onchange="updateScore('{{ sub.code }}', 'next_year_goal', this.value)">
+                            </td>
+                            <td class="notes-cell">
+                                <textarea class="notes-input"
+                                          id="notes-{{ sub.id }}"
+                                          rows="2"
+                                          onchange="updateScore('{{ sub.code }}', 'notes', this.value)">{{ sub.notes if sub.notes else '' }}</textarea>
+                            </td>
+                            <td class="actions-cell">
+                                <button class="btn btn-sm btn-outline" onclick="showDetails({{ sub.id }})">
+                                    Details
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="toggleLock('{{ sub.code }}', {{ 'true' if not sub.prior_year_locked else 'false' }})">
+                                    {% if sub.prior_year_locked %}Unlock{% else %}Lock{% endif %}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="category-summary">
+                <strong>Category Average:</strong>
+                Prior: {{ item.averages.prior_year }} |
+                Current: {{ item.averages.current_score }} |
+                Goal: {{ item.averages.current_goal }} |
+                Next Year: {{ item.averages.next_goal }}
+            </div>
+        </section>
+        {% endfor %}
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Subcategory Details</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>NIST CSF 2.0 Tracker &copy; 2024</p>
+    </footer>
+
+    <script>
+        // ============================================================================
+        // THEME MANAGEMENT
+        // ============================================================================
+
+        const storedTheme = localStorage.getItem('nist-csf-theme') || 'default';
+        document.documentElement.setAttribute('data-theme', storedTheme);
+        document.getElementById('theme-select').value = storedTheme;
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('nist-csf-theme', theme);
+            updateChartColors();
+        }
+
+        // ============================================================================
+        // CHART CONFIGURATION
+        // ============================================================================
+
+        const yearColors = {{ year_colors | tojson }};
+        let categoryChart = null;
+
+        function getThemeColors() {
+            const style = getComputedStyle(document.documentElement);
+            return {
+                text: style.getPropertyValue('--chart-text').trim() || '#090B2F',
+                grid: style.getPropertyValue('--chart-grid').trim() || '#ECEEF2'
+            };
+        }
+
+        // Chart data
+        const categoryData = [
+            {% for item in category_data %}
+            {
+                code: '{{ item.category.code }}',
+                name: '{{ item.category.name }}',
+                prior: {{ item.averages.prior_year }},
+                current: {{ item.averages.current_score }},
+                goal: {{ item.averages.current_goal }},
+                next: {{ item.averages.next_goal }}
+            },
+            {% endfor %}
+        ];
+
+        // Create category chart
+        function createChart() {
+            const themeColors = getThemeColors();
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+
+            categoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categoryData.map(c => c.code),
+                    datasets: [
+                        {
+                            label: 'Prior Year',
+                            data: categoryData.map(c => c.prior),
+                            backgroundColor: yearColors.prior_year
+                        },
+                        {
+                            label: 'Current Score',
+                            data: categoryData.map(c => c.current),
+                            backgroundColor: yearColors.current_score
+                        },
+                        {
+                            label: 'Current Year Goal',
+                            data: categoryData.map(c => c.goal),
+                            backgroundColor: yearColors.current_year_goal
+                        },
+                        {
+                            label: 'Next Year Goal',
+                            data: categoryData.map(c => c.next),
+                            backgroundColor: yearColors.next_year_goal
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: themeColors.text
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 0.5,
+                                color: themeColors.text
+                            },
+                            grid: {
+                                color: themeColors.grid
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: themeColors.text
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        createChart();
+
+        function updateChartColors() {
+            if (categoryChart) {
+                const themeColors = getThemeColors();
+                categoryChart.options.plugins.legend.labels.color = themeColors.text;
+                categoryChart.options.scales.y.ticks.color = themeColors.text;
+                categoryChart.options.scales.y.grid.color = themeColors.grid;
+                categoryChart.options.scales.x.ticks.color = themeColors.text;
+                categoryChart.update();
+            }
+        }
+
+        // ============================================================================
+        // SCORE MANAGEMENT
+        // ============================================================================
+
+        function updateScore(subcategoryCode, field, value) {
+            const data = {};
+            data[field] = parseFloat(value) || null;
+
+            // Check if trying to update locked prior year score
+            if (field === 'prior_year_score') {
+                const scoreId = subcategoryCode;
+                const input = document.querySelector(`input[id^="prior-"][id$="-${scoreId.split('-')[1]}"]`) ||
+                              document.getElementById(`prior-${scoreId}`);
+
+                // Find the input by looking for disabled inputs
+                const allInputs = document.querySelectorAll('.score-input');
+                for (const inp of allInputs) {
+                    if (inp.id.includes('prior-') && inp.disabled) {
+                        // Check if this is the right one by finding parent row
+                        const row = inp.closest('tr');
+                        if (row && row.querySelector('.subcategory-desc')) {
+                            // This is our target
+                        }
+                    }
+                }
+            }
+
+            fetch(`/api/scores/${subcategoryCode}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.subcategory_code) {
+                    showNotification('Score updated successfully', 'success');
+                } else if (result.error) {
+                    if (result.locked) {
+                        // Handle locked score
+                        const reason = prompt('Prior year score is locked. Enter override reason:');
+                        if (reason) {
+                            data.override_reason = reason;
+                            fetch(`/api/scores/${subcategoryCode}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            })
+                            .then(r => r.json())
+                            .then(res => {
+                                if (res.subcategory_code) {
+                                    showNotification('Score overridden successfully', 'success');
+                                } else {
+                                    showNotification(res.error || 'Failed to override', 'error');
+                                }
+                            });
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        showNotification(result.error, 'error');
+                    }
+                }
+            })
+            .catch(err => {
+                showNotification('Error updating score', 'error');
+                console.error(err);
+            });
+        }
+
+        // Toggle lock function
+        function toggleLock(subcategoryCode, shouldLock) {
+            const reason = shouldLock ? 'Locking prior year score' : prompt('Enter reason for unlocking prior year score:');
+
+            fetch(`/api/scores/${subcategoryCode}/lock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ locked: shouldLock, reason: reason || 'Unlocked via UI' })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification(result.locked ? 'Score locked' : 'Score unlocked', 'success');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showNotification(result.error || 'Failed to update lock status', 'error');
+                }
+            });
+        }
+
+        // Show subcategory details
+        function showDetails(subcategoryId) {
+            fetch(`/api/subcategories`)
+                .then(response => response.json())
+                .then(data => {
+                    const sub = data.find(s => s.id === subcategoryId);
+                    if (!sub) {
+                        showNotification('Subcategory not found', 'error');
+                        return;
+                    }
+
+                    document.getElementById('modal-title').textContent = sub.code;
+                    document.getElementById('modal-body').innerHTML = `
+                        <div class="detail-grid">
+                            <div class="detail-section">
+                                <h3>Description</h3>
+                                <p>${sub.description || 'N/A'}</p>
+                            </div>
+                            <div class="detail-section">
+                                <h3>Implementation Examples</h3>
+                                <div class="examples">${sub.implementation_examples || 'N/A'}</div>
+                            </div>
+                            <div class="detail-section">
+                                <h3>Informative References</h3>
+                                <div class="examples">${sub.informative_references || 'N/A'}</div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('detailModal').style.display = 'block';
+                });
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+
+        // ============================================================================
+        // NOTIFICATIONS
+        // ============================================================================
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
