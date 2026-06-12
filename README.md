@@ -32,7 +32,10 @@ The dashboard displays:
 - Score breakdown by CSF function
 - Comparison charts showing progress and goals
 - Detailed subcategory views with notes and improvement tracking
-- <img width="1425" height="1170" alt="Screenshot 2026-06-12 at 2 45 38 PM" src="https://github.com/user-attachments/assets/d3df0d1e-6812-4a8f-9468-367e7e1f987c" />
+  <img width="1425" height="1170" alt="Screenshot 2026-06-12 at 2 45 38 PM" src="https://github.com/user-attachments/assets/d3df0d1e-6812-4a8f-9468-367e7e1f987c" />
+  <img width="1370" height="1036" alt="Screenshot 2026-06-12 at 2 46 05 PM" src="https://github.com/user-attachments/assets/d492ed5a-0988-4408-b05f-4ee755de867f" />
+  <img width="1428" height="1060" alt="Screenshot 2026-06-12 at 2 46 14 PM" src="https://github.com/user-attachments/assets/b8e9d882-2c8b-4e9c-9b68-c922258cba9d" />
+  <img width="741" height="695" alt="Screenshot 2026-06-12 at 2 46 29 PM" src="https://github.com/user-attachments/assets/a434ea47-85d7-41aa-8cb2-545de4fcd8bf" />
 
 
 ## Requirements
