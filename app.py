@@ -1087,7 +1087,7 @@ def api_import_csv():
         'impact': 'score_impact'
     }
 
-    for item in data:
+    for item in data['data']:
         # Normalize keys
         normalized_item = {}
         for key, value in item.items():
